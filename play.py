@@ -190,6 +190,7 @@ def average_image():
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
     rgb = {}
     rgb_bytes = {}
+    rgb_colors = {}
 
     # Constantly sets RGB values by location via taking average of nearby pixels
     while not stop_stream:
