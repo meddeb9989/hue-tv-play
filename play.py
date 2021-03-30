@@ -203,7 +203,7 @@ def average_image():
             area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
             rgb_colors[light_id] = cv2.mean(area)
 
-        for light_id, avg in rgb.items():
+        for light_id, avg in rgb_colors.items():
             rgb_bytes[light_id] = bytearray([
                 int(avg[0] / 2),
                 int(avg[0] / 2),
@@ -224,7 +224,7 @@ def send_colors_to_lights():
     verbose(f"send_colors_to_lights: stop_stream: {stop_stream}")
     while not stop_stream:
         buffer_lock.acquire()
-        for light_id, rgb in rgb_bytes.items():
+        for light_id, rgb in rgb_colors.items():
             api.set_color(rgb, indices=[light_id])
             verbose(f"Light: {light_id} color is set to: {rgb}")
         buffer_lock.release()
