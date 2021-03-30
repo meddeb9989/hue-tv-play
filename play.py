@@ -189,6 +189,8 @@ def average_image():
         bound = list(map(lambda x: 0 if x < 0 else x, bound))
         bounds[light_id] = bound
 
+    verbose(f"Lights bounds: {bounds}")
+
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
     rgb = {}
     rgb_bytes = {}
@@ -221,10 +223,11 @@ def send_colors_to_lights():
 
     verbose(f"send_colors_to_lights: stop_stream: {stop_stream}")
     while not stop_stream:
-        verbose(f"Lights rgb bytes: {rgb_bytes}")
+        buffer_lock.acquire()
         for light_id, rgb in rgb_bytes.items():
             api.set_color(rgb, indices=[light_id])
             verbose(f"Light: {light_id} color is set to: {rgb}")
+        buffer_lock.release()
 
 
 ####################################
