@@ -251,10 +251,12 @@ def run_hue_play():
             t.start()
             threads.append(t)
 
-            input("Press return to stop")  # Allow us to exit easily
-            stop_stream = True
-            for t in threads:
-                t.join()
+            key = input("Press ESC to stop")  # Allow us to exit easily
+            print()
+            if key == 27:  # exit on ESC
+                stop_stream = True
+                for t in threads:
+                    t.join()
         except Exception as e:
             print(e)
             stop_stream = True
