@@ -19,6 +19,7 @@ cmd_args = parser.parse_args()
 
 def verbose(*args, **kwargs):
     if cmd_args.verbose:
+        print()
         print(*args, **kwargs)
 
 
@@ -254,12 +255,10 @@ def run_hue_play():
             t.start()
             threads.append(t)
 
-            key = input("Press ENTER to stop")  # Allow us to exit easily
-            print()
-            if key == 27:  # exit on ESC
-                stop_stream = True
-                for t in threads:
-                    t.join()
+            input("Press ENTER to stop")  # Allow us to exit easily
+            stop_stream = True
+            for t in threads:
+                t.join()
         except Exception as e:
             print(e)
             stop_stream = True
