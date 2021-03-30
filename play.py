@@ -220,6 +220,7 @@ def send_colors_to_lights():
         buffer_lock.acquire()
         for light_id, rgb in rgb_bytes.items():
             api.set_color(rgb, indices=[light_id])
+            verbose(f"Light: {light_id} color is set to: {rgb}")
         buffer_lock.release()
 
 
