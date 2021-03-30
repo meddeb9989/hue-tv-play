@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+# Run a command once and then run it every time it stops.
+loop ()
+{
+    while true; do
+        "$@";
+        sleep 1;
+        echo "Restarting..."
+    done
+}
+
+loop "$@"

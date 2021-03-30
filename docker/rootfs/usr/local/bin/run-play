@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+exec run-forever python play.py -v -rl LEDTV
