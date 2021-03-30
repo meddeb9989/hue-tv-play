@@ -39,7 +39,7 @@ def hue_login():
         verbose("Trying to load user from cache")
         api.load_existing()
         verbose("User saved in cache loaded")
-    except UninitializedException:
+    except (UninitializedException, FileNotFoundError):
         # auto-find bridges on network & get list
         response = requests.get("https://discovery.meethue.com/")
         bridges = json.loads(response.text)
