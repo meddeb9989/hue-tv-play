@@ -73,12 +73,9 @@ def hue_login():
 #           Lights setup           #
 ####################################
 def get_light_id_by_name(name):
-    # get lights list
-    lights_list = api.fetch_lights()
-
-    for light_id, light_info in lights_list.items():
-        if light_info.get("name") == name:
-            return light_id
+    for light in api.fetch_lights():
+        if light.name == name:
+            return light.id
 
     print(f"Error: Can't find light id for name: {name}")
     sys.exit(0)
