@@ -221,11 +221,10 @@ def send_colors_to_lights():
 
     verbose(f"send_colors_to_lights: stop_stream: {stop_stream}")
     while not stop_stream:
-        buffer_lock.acquire()
+        verbose(f"Lights rgb bytes: {rgb_bytes}")
         for light_id, rgb in rgb_bytes.items():
             api.set_color(rgb, indices=[light_id])
             verbose(f"Light: {light_id} color is set to: {rgb}")
-        buffer_lock.release()
 
 
 ####################################
