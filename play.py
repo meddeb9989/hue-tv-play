@@ -138,6 +138,7 @@ def configure_rgb_frames():
     capture.set(cv2.CAP_PROP_BUFFERSIZE, 0)  # No frame buffer to avoid lagging, always grab newest frame
     capture_index = 0
 
+    verbose(f"configure_rgb_frames: stop_stream: {stop_stream}")
     while not stop_stream:
         capture_index += 1
         frame = capture.grab()  # constantly grabs frames
@@ -193,6 +194,7 @@ def average_image():
     rgb_colors = {}
 
     # Constantly sets RGB values by location via taking average of nearby pixels
+    verbose(f"average_image: stop_stream: {stop_stream}")
     while not stop_stream:
         for light_id, bound in bounds.items():
             area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
@@ -216,6 +218,7 @@ def send_colors_to_lights():
     # Hold on for connection to bridge can be made & video capture is configured
     time.sleep(1.5)
 
+    verbose(f"send_colors_to_lights: stop_stream: {stop_stream}")
     while not stop_stream:
         buffer_lock.acquire()
         for light_id, rgb in rgb_bytes.items():
@@ -251,7 +254,7 @@ def run_hue_play():
             t.start()
             threads.append(t)
 
-            key = input("Press ESC to stop")  # Allow us to exit easily
+            key = input("Press ENTER to stop")  # Allow us to exit easily
             print()
             if key == 27:  # exit on ESC
                 stop_stream = True
