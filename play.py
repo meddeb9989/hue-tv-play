@@ -12,8 +12,10 @@ from hue_api.exceptions import UninitializedException, ButtonNotPressedException
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
 parser.add_argument("-b", "--bridgeid", dest="bridge_id")
-parser.add_argument("-ll", "--leftlight", dest="left_light")
-parser.add_argument("-rl", "--rightlight", dest="right_light")
+parser.add_argument("-ull", "--upleftlight", dest="up_left_light")
+parser.add_argument("-url", "--uprightlight", dest="up_right_light")
+parser.add_argument("-dll", "--downleftlight", dest="down_left_light")
+parser.add_argument("-drl", "--downrightlight", dest="down_right_light")
 cmd_args = parser.parse_args()
 
 
@@ -86,25 +88,43 @@ def init_light_locations():
     global light_locations
 
     light_locations = {
-        "right_light": [0.43, 1.0, 0.0],
-        "left_light": [-0.43, 1.0, 0.0]
+        "up_right_light": [0.5, 1.0, 0.0],
+        "up_left_light": [-0.5, 1.0, 0.0],
+        "down_right_light": [0.5, 0.5, 0.0],
+        "down_left_light": [-0.5, 0.5, 0.0]
     }
 
-    if not cmd_args.left_light:
-        del light_locations["left_light"]
+    if not cmd_args.up_left_light:
+        del light_locations["up_left_light"]
     else:
-        light_id = get_light_id_by_name(cmd_args.left_light)
-        light_locations[light_id] = light_locations.get("left_light")
-        del light_locations["left_light"]
-        verbose("Left light configured successfully")
+        light_id = get_light_id_by_name(cmd_args.up_left_light)
+        light_locations[light_id] = light_locations.get("up_left_light")
+        del light_locations["up_left_light"]
+        verbose("Up-left light configured successfully")
 
-    if not cmd_args.right_light:
-        del light_locations["right_light"]
+    if not cmd_args.up_right_light:
+        del light_locations["up_right_light"]
     else:
-        light_id = get_light_id_by_name(cmd_args.right_light)
-        light_locations[light_id] = light_locations.get("right_light")
-        del light_locations["right_light"]
-        verbose("Right light configured successfully")
+        light_id = get_light_id_by_name(cmd_args.up_right_light)
+        light_locations[light_id] = light_locations.get("up_right_light")
+        del light_locations["up_right_light"]
+        verbose("Up-right light configured successfully")
+
+    if not cmd_args.down_left_light:
+        del light_locations["down_left_light"]
+    else:
+        light_id = get_light_id_by_name(cmd_args.down_left_light)
+        light_locations[light_id] = light_locations.get("down_left_light")
+        del light_locations["down_left_light"]
+        verbose("Down-left light configured successfully")
+
+    if not cmd_args.down_right_light:
+        del light_locations["down_right_light"]
+    else:
+        light_id = get_light_id_by_name(cmd_args.down_right_light)
+        light_locations[light_id] = light_locations.get("down_right_light")
+        del light_locations["down_right_light"]
+        verbose("Down-right light configured successfully")
 
     if not light_locations:
         print(
@@ -139,7 +159,6 @@ def configure_rgb_frames():
     capture.set(cv2.CAP_PROP_BUFFERSIZE, 0)  # No frame buffer to avoid lagging, always grab newest frame
     capture_index = 0
 
-    verbose(f"configure_rgb_frames: stop_stream: {stop_stream}")
     while not stop_stream:
         capture_index += 1
         frame = capture.grab()  # constantly grabs frames
@@ -189,15 +208,12 @@ def average_image():
         bound = list(map(lambda x: 0 if x < 0 else x, bound))
         bounds[light_id] = bound
 
-    verbose(f"Lights bounds: {bounds}")
-
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
     rgb = {}
     rgb_bytes = {}
     rgb_colors = {}
 
     # Constantly sets RGB values by location via taking average of nearby pixels
-    verbose(f"average_image: stop_stream: {stop_stream}")
     while not stop_stream:
         for light_id, bound in bounds.items():
             area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
@@ -209,15 +225,14 @@ def average_image():
 ####################################
 def send_colors_to_lights():
     # Hold on for connection to bridge can be made & video capture is configured
-    time.sleep(1.5)
+    time.sleep(1.3)
 
-    verbose(f"send_colors_to_lights: stop_stream: {stop_stream}")
     while not stop_stream:
-        buffer_lock.acquire()
+        #buffer_lock.acquire()
         for light_id, rgb in rgb_colors.items():
             api.set_color((rgb[0], rgb[1], rgb[2]), indices=[light_id])
             # api.set_brightness(rgb[3], indices=[light_id])
-        buffer_lock.release()
+        #buffer_lock.release()
 
 
 ####################################
