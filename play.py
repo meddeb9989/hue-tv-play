@@ -4,10 +4,11 @@ import threading
 import time
 import cv2
 
+import colorsys
 import requests
 import argparse
 from hue_api import HueApi
-from hue_api.exceptions import UninitializedException, ButtonNotPressedException
+from hue_api.exceptions import UninitializedException, ButtonNotPressedException, FailedToSetState
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
@@ -75,36 +76,67 @@ def hue_login():
 ####################################
 #           Lights setup           #
 ####################################
-def animation_light_on(light_id):
-    verbose(f"Turning on light: {light_id}")
-    time.sleep(0.2)
-    api.turn_off(indices=[light_id])
-    time.sleep(0.2)
-    api.turn_on(indices=[light_id])
-    time.sleep(0.2)
-    api.set_brightness('min', indices=[light_id])
-    time.sleep(0.2)
-    api.set_brightness('max', indices=[light_id])
-    time.sleep(0.2)
-    api.set_brightness('med', indices=[light_id])
+def animation_light_on(light):
+    try:
+        verbose(f"Turning on light: {light.name}")
+        time.sleep(0.2)
+        light.set_off()
+        time.sleep(0.2)
+        light.set_on()
+        time.sleep(0.2)
+        light.set_brightness(20)
+        time.sleep(0.2)
+        light.set_brightness(254)
+        time.sleep(0.2)
+        light.set_brightness(100)
+    except FailedToSetState:
+        verbose(f"Error on config set light on for light: {light.name}")
 
 
-def animation_light_off(light_id):
-    verbose(f"Turning off light: {light_id}")
-    api.set_brightness('max', indices=[light_id])
-    time.sleep(0.2)
-    api.set_brightness('med', indices=[light_id])
-    time.sleep(0.2)
-    api.set_brightness('min', indices=[light_id])
-    time.sleep(0.2)
-    api.turn_off(indices=[light_id])
+def animation_light_off(light):
+    try:
+        verbose(f"Turning off light: {light.mame}")
+        light.set_brightness(254)
+        time.sleep(0.2)
+        light.set_brightness(100)
+        time.sleep(0.2)
+        light.set_brightness(20)
+        time.sleep(0.2)
+        light.set_off()
+    except FailedToSetState:
+        verbose(f"Error on config set light off for light: {light.name}")
+
+
+def get_hue_color_from_rgba(rgba):
+    """
+    HSV: Hue, Saturation, Value
+    H: position in the spectrum
+    S: color saturation ("purity")
+    V: color brightness
+    :param rgba: Color in rgba format
+    :return: hue color and saturation (hue, saturation)
+    """
+    r, g, b, a = rgba
+    h, s, v = colorsys.rgb_to_hsv(r, g, b)
+    hue = int((2 ** 16 - 1) * h)
+    saturation = int((2 ** 8 - 1) * s)
+    return hue, saturation
+
+
+def change_light_color(light, rgba):
+    try:
+        light.set_color(*get_hue_color_from_rgba(rgba))
+        # api.set_color((rgba[0], rgba[1], rgba[2]), indices=[light_id])
+        # api.set_brightness(rgba[3], indices=[light_id])
+    except FailedToSetState:
+        verbose(f"Error on change light color for light: {light.name}")
 
 
 def get_light_id_by_name(name):
     for light in api.fetch_lights():
         if light.name == name:
-            animation_light_on(light.id)
-            return light.id
+            animation_light_on(light)
+            return light
 
     print(f"Error: Can't find light id for name: {name}")
     sys.exit(0)
@@ -114,41 +146,42 @@ def init_light_locations():
     global light_locations
 
     light_locations = {
-        "up_right_light": [1.0, 1.0],
-        "up_left_light": [0.0, 1.0],
-        "down_right_light": [1.0, 0.0],
-        "down_left_light": [0.0, 0.0]
+        # light positions [x, y]
+        "up_right_light": [0.75, 0.75],
+        "up_left_light": [0.25, 0.75],
+        "down_right_light": [0.25, 0.25],
+        "down_left_light": [0.75, 0.25]
     }
 
     if not cmd_args.up_left_light:
         del light_locations["up_left_light"]
     else:
-        light_id = get_light_id_by_name(cmd_args.up_left_light)
-        light_locations[light_id] = light_locations.get("up_left_light")
+        light = get_light_id_by_name(cmd_args.up_left_light)
+        light_locations[light] = light_locations.get("up_left_light")
         del light_locations["up_left_light"]
         verbose("Up-left light configured successfully")
 
     if not cmd_args.up_right_light:
         del light_locations["up_right_light"]
     else:
-        light_id = get_light_id_by_name(cmd_args.up_right_light)
-        light_locations[light_id] = light_locations.get("up_right_light")
+        light = get_light_id_by_name(cmd_args.up_right_light)
+        light_locations[light] = light_locations.get("up_right_light")
         del light_locations["up_right_light"]
         verbose("Up-right light configured successfully")
 
     if not cmd_args.down_left_light:
         del light_locations["down_left_light"]
     else:
-        light_id = get_light_id_by_name(cmd_args.down_left_light)
-        light_locations[light_id] = light_locations.get("down_left_light")
+        light = get_light_id_by_name(cmd_args.down_left_light)
+        light_locations[light] = light_locations.get("down_left_light")
         del light_locations["down_left_light"]
         verbose("Down-left light configured successfully")
 
     if not cmd_args.down_right_light:
         del light_locations["down_right_light"]
     else:
-        light_id = get_light_id_by_name(cmd_args.down_right_light)
-        light_locations[light_id] = light_locations.get("down_right_light")
+        light = get_light_id_by_name(cmd_args.down_right_light)
+        light_locations[light] = light_locations.get("down_right_light")
         del light_locations["down_right_light"]
         verbose("Down-right light configured successfully")
 
@@ -203,12 +236,12 @@ def configure_rgb_frames():
 def average_image():
     # Scales up locations to identify the nearest pixel based on lights locations
     time.sleep(2.2)  # wait for video size to be defined
-    for light_id, light_pos in light_locations.items():
+    for light, light_pos in light_locations.items():
         # Translates x value and resizes to video aspect ratio
-        light_pos[0] = (light_pos[0] + 0.5) * video_width // 2
+        light_pos[0] = ((light_pos[0]) + 1) * video_width // 2
 
         # Flips y, translates, and resize to vid aspect ratio
-        light_pos[1] = (light_pos[1] + 0.5) * video_height // 2
+        light_pos[1] = (-1 * (light_pos[1]) + 1) * video_height // 2
 
     scaled_locations = list(light_locations.items())  # Makes it a list of locations by light
     verbose("Lights and locations (in order) on TV array after math are: ", scaled_locations)
@@ -218,7 +251,7 @@ def average_image():
     verbose('Average size is: ', avg_size)
 
     breadth = .15  # approx percent of the screen outside the location to capture
-    dist = int(breadth * avg_size)  # Proportion of the pixels we want to average around in relation to the video size
+    dist = int(breadth * avg_size)  # proportion of the pixels we want to average around in relation to the video size
     verbose('Distance from relative location is: ', dist)
 
     global coords  # dict of coordinates
@@ -227,12 +260,12 @@ def average_image():
     # initialize the dicts
     coords = {}
     bounds = {}
-    for light_id, coordinates in scaled_locations:
-        coords[light_id] = coordinates
+    for light, coordinates in scaled_locations:
+        coords[light] = coordinates
         bound = [coordinates[1] - dist, coordinates[1] + dist, coordinates[0] - dist, coordinates[0] + dist]
         bound = list(map(int, bound))
         bound = list(map(lambda x: 0 if x < 0 else x, bound))
-        bounds[light_id] = bound
+        bounds[light] = bound
 
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
     rgb_bytes = {}
@@ -253,9 +286,8 @@ def send_colors_to_lights():
     time.sleep(2.5)
 
     while not stop_stream:
-        for light_id, rgb in rgb_colors.items():
-            api.set_color((rgb[0], rgb[1], rgb[2]), indices=[light_id])
-            # api.set_brightness(rgb[3], indices=[light_id])
+        for light, rgba in rgb_colors.items():
+            change_light_color(light, rgba)
 
 
 ####################################
