@@ -132,7 +132,7 @@ def change_light_color(light, rgba):
         verbose(f"Error on change light color for light: {light.name}")
 
 
-def get_light_id_by_name(name):
+def get_light_by_name(name):
     for light in api.fetch_lights():
         if light.name == name:
             animation_light_on(light)
@@ -147,16 +147,16 @@ def init_light_locations():
 
     light_locations = {
         # light positions [x, y]
-        "up_right_light": [0.75, 0.75],
-        "up_left_light": [0.25, 0.75],
-        "down_right_light": [0.25, 0.25],
-        "down_left_light": [0.75, 0.25]
+        "up_right_light": [0.5, 1.0, 0.0],
+        "up_left_light": [-0.5, 1.0, 0.0],
+        "down_right_light": [0.5, 1.0, 0.0],
+        "down_left_light": [-0.5, 1.0, 0.0]
     }
 
     if not cmd_args.up_left_light:
         del light_locations["up_left_light"]
     else:
-        light = get_light_id_by_name(cmd_args.up_left_light)
+        light = get_light_by_name(cmd_args.up_left_light)
         light_locations[light] = light_locations.get("up_left_light")
         del light_locations["up_left_light"]
         verbose("Up-left light configured successfully")
@@ -164,7 +164,7 @@ def init_light_locations():
     if not cmd_args.up_right_light:
         del light_locations["up_right_light"]
     else:
-        light = get_light_id_by_name(cmd_args.up_right_light)
+        light = get_light_by_name(cmd_args.up_right_light)
         light_locations[light] = light_locations.get("up_right_light")
         del light_locations["up_right_light"]
         verbose("Up-right light configured successfully")
@@ -172,7 +172,7 @@ def init_light_locations():
     if not cmd_args.down_left_light:
         del light_locations["down_left_light"]
     else:
-        light = get_light_id_by_name(cmd_args.down_left_light)
+        light = get_light_by_name(cmd_args.down_left_light)
         light_locations[light] = light_locations.get("down_left_light")
         del light_locations["down_left_light"]
         verbose("Down-left light configured successfully")
@@ -180,7 +180,7 @@ def init_light_locations():
     if not cmd_args.down_right_light:
         del light_locations["down_right_light"]
     else:
-        light = get_light_id_by_name(cmd_args.down_right_light)
+        light = get_light_by_name(cmd_args.down_right_light)
         light_locations[light] = light_locations.get("down_right_light")
         del light_locations["down_right_light"]
         verbose("Down-right light configured successfully")
@@ -241,7 +241,7 @@ def average_image():
         light_pos[0] = ((light_pos[0]) + 1) * video_width // 2
 
         # Flips y, translates, and resize to vid aspect ratio
-        light_pos[1] = (-1 * (light_pos[1]) + 1) * video_height // 2
+        light_pos[2] = (-1 * (light_pos[2]) + 1) * video_height // 2
 
     scaled_locations = list(light_locations.items())  # Makes it a list of locations by light
     verbose("Lights and locations (in order) on TV array after math are: ", scaled_locations)
@@ -262,7 +262,7 @@ def average_image():
     bounds = {}
     for light, coordinates in scaled_locations:
         coords[light] = coordinates
-        bound = [coordinates[1] - dist, coordinates[1] + dist, coordinates[0] - dist, coordinates[0] + dist]
+        bound = [coordinates[2] - dist, coordinates[2] + dist, coordinates[0] - dist, coordinates[0] + dist]
         bound = list(map(int, bound))
         bound = list(map(lambda x: 0 if x < 0 else x, bound))
         bounds[light] = bound
@@ -274,7 +274,7 @@ def average_image():
     # Constantly sets RGB values by location via taking average of nearby pixels
     while not stop_stream:
         for light_id, bound in bounds.items():
-            area = rgb_frame[bound[0]:bound[1], bound[1]:bound[1], :]
+            area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
             rgb_colors[light_id] = cv2.mean(area)
 
 
@@ -326,8 +326,8 @@ def run_hue_play():
             stop_stream = True
 
     finally:  # Turn off streaming to allow normal function immediately
-        for light_id in light_locations.keys():
-            animation_light_off(light_id)
+        for light in light_locations.keys():
+            animation_light_off(light)
         verbose("Disabling lights color streaming")
 
 
