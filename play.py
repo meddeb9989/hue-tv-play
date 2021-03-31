@@ -125,7 +125,12 @@ def get_hue_color_from_rgba(rgba):
 
 def change_light_color(light, rgba):
     try:
-        light.set_color(*get_hue_color_from_rgba(rgba))
+        r, g, b, a = rgba
+        if r == g == b ==0:
+            light.set_off()
+        else:
+            light.set_on()
+            light.set_color(*get_hue_color_from_rgba(rgba))
         # api.set_color((rgba[0], rgba[1], rgba[2]), indices=[light_id])
         # api.set_brightness(rgba[3], indices=[light_id])
     except FailedToSetState:
