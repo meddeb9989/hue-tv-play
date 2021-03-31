@@ -163,13 +163,7 @@ def get_hue_color_from_rgba(rgba):
 def change_light_color(light, rgba):
     try:
         hue, saturation = get_hue_color_from_rgba(rgba)
-        payload = {
-            'bri': light.state.brightness,
-            'sat': saturation,
-            'hue': hue,
-            'on': light.state.is_on
-        }
-        light.set_state(payload)
+        light.set_color(hue, saturation)
     except FailedToSetState:
         verbose(f"Error on change light color for light: {light.name}")
 
