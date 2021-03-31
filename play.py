@@ -114,10 +114,10 @@ def init_light_locations():
     global light_locations
 
     light_locations = {
-        "up_right_light": [0.0, 1.0],
-        "up_left_light": [1.0, 1.0],
-        "down_right_light": [0.0, 0.0],
-        "down_left_light": [1.0, 0.0]
+        "up_right_light": [1.0, 1.0],
+        "up_left_light": [0.0, 1.0],
+        "down_right_light": [1.0, 0.0],
+        "down_left_light": [0.0, 0.0]
     }
 
     if not cmd_args.up_left_light:
@@ -205,10 +205,10 @@ def average_image():
     time.sleep(2.2)  # wait for video size to be defined
     for light_id, light_pos in light_locations.items():
         # Translates x value and resizes to video aspect ratio
-        light_pos[0] = light_pos[0] * video_width // 2
+        light_pos[0] = (light_pos[0] + 0.5) * video_width // 2
 
         # Flips y, translates, and resize to vid aspect ratio
-        light_pos[1] = light_pos[1] * video_height // 2
+        light_pos[1] = (light_pos[1] + 0.5) * video_height // 2
 
     scaled_locations = list(light_locations.items())  # Makes it a list of locations by light
     verbose("Lights and locations (in order) on TV array after math are: ", scaled_locations)
