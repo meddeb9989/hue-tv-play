@@ -9,6 +9,7 @@ import requests
 import argparse
 from hue_api import HueApi
 from hue_api.exceptions import UninitializedException, ButtonNotPressedException, FailedToSetState
+from hue_api.lights import HueLight
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
@@ -18,6 +19,42 @@ parser.add_argument("-url", "--uprightlight", dest="up_right_light")
 parser.add_argument("-dll", "--downleftlight", dest="down_left_light")
 parser.add_argument("-drl", "--downrightlight", dest="down_right_light")
 cmd_args = parser.parse_args()
+
+
+class CustomHueLight(HueLight):
+    def __init__(self, *args, **kwargs):
+        super(CustomHueLight, self).__init__(*args, **kwargs)
+        self._is_off = None
+
+    @property
+    def is_off(self):
+        return self._is_off
+
+    @is_off.setter
+    def is_off(self, is_off):
+        self._is_off = is_off
+
+    def set_off(self):
+        super(CustomHueLight, self).set_off()
+        self._is_off = True
+
+    def set_on(self):
+        super(CustomHueLight, self).set_on()
+        self._is_off = False
+
+
+class CustomHueApi(HueApi):
+    def fetch_lights(self, *args, **kwargs):
+        url = self.base_url + "/lights"
+        response = requests.get(url).json()
+        lights = []
+        for light_id in response:
+            state = response[light_id].get('state')
+            name = response[light_id].get('name')
+            hue_light = CustomHueLight(int(light_id), name, state, url)
+            lights.append(hue_light)
+        self.lights = lights
+        return lights
 
 
 def verbose(*args, **kwargs):
@@ -36,7 +73,7 @@ def hue_login():
     """
     global api
     # instantiate a HueApi object
-    api = HueApi()
+    api = CustomHueApi()
 
     try:
         # load existing user if saved in cache
@@ -128,9 +165,12 @@ def change_light_color(light, rgba):
         r, g, b, a = rgba
         if r == g == b ==0:
             light.set_off()
-        else:
+            return
+
+        elif light.is_off:
             light.set_on()
-            light.set_color(*get_hue_color_from_rgba(rgba))
+
+        light.set_color(*get_hue_color_from_rgba(rgba))
         # api.set_color((rgba[0], rgba[1], rgba[2]), indices=[light_id])
         # api.set_brightness(rgba[3], indices=[light_id])
     except FailedToSetState:
