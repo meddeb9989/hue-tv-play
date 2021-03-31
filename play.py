@@ -76,11 +76,12 @@ def hue_login():
 #           Lights setup           #
 ####################################
 def get_light_id_by_name(name):
-    time.sleep(0.5)
     for light in api.fetch_lights():
         if light.name == name:
             api.turn_off(indices=[light.id])
+            time.sleep(0.2)
             api.turn_on(indices=[light.id])
+            time.sleep(0.2)
             api.set_brightness('med', indices=[light.id])
             return light.id
 
@@ -272,6 +273,15 @@ def run_hue_play():
             stop_stream = True
 
     finally:  # Turn off streaming to allow normal function immediately
+        for light_id in light_locations.keys():
+            api.set_brightness('max', indices=[light_id])
+            time.sleep(0.2)
+            api.set_brightness('med', indices=[light_id])
+            time.sleep(0.2)
+            api.set_brightness('min', indices=[light_id])
+            time.sleep(0.2)
+            api.turn_off(indices=[light_id])
+            verbose(f"Turning off light: {light_id}")
         verbose("Disabling lights color streaming")
 
 
