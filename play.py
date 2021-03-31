@@ -95,7 +95,7 @@ def animation_light_on(light):
 
 def animation_light_off(light):
     try:
-        verbose(f"Turning off light: {light.mame}")
+        verbose(f"Turning off light: {light.name}")
         light.set_brightness(254)
         time.sleep(0.2)
         light.set_brightness(100)
