@@ -76,7 +76,7 @@ def hue_login():
 #           Lights setup           #
 ####################################
 def get_light_id_by_name(name):
-    time.sleep(2)
+    time.sleep(0.5)
     for light in api.fetch_lights():
         if light.name == name:
             api.turn_off(indices=[light.id])
