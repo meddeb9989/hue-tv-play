@@ -164,7 +164,7 @@ def change_light_color(light, rgba):
     try:
         hue, saturation = get_hue_color_from_rgba(rgba)
         payload = {
-            'bri': rgba[3],
+            'bri': light.state.brightness,
             'sat': saturation,
             'hue': hue,
             'on': light.state.is_on
