@@ -216,7 +216,7 @@ def send_colors_to_lights():
         buffer_lock.acquire()
         for light_id, rgb in rgb_colors.items():
             api.set_color((rgb[0], rgb[1], rgb[2]), indices=[light_id])
-            api.set_brightness(rgb[3], indices=[light_id])
+            # api.set_brightness(rgb[3], indices=[light_id])
         buffer_lock.release()
 
 
