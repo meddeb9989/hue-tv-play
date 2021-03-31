@@ -76,8 +76,12 @@ def hue_login():
 #           Lights setup           #
 ####################################
 def get_light_id_by_name(name):
+    time.sleep(2)
     for light in api.fetch_lights():
         if light.name == name:
+            api.turn_off(indices=[light.id])
+            api.turn_on(indices=[light.id])
+            api.set_brightness('med', indices=[light.id])
             return light.id
 
     print(f"Error: Can't find light id for name: {name}")
@@ -176,7 +180,7 @@ def configure_rgb_frames():
 ####################################
 def average_image():
     # Scales up locations to identify the nearest pixel based on lights locations
-    time.sleep(1.2)  # wait for video size to be defined
+    time.sleep(2.2)  # wait for video size to be defined
     for light_id, light_pos in light_locations.items():
         # Translates x value and resizes to video aspect ratio
         light_pos[0] = ((light_pos[0]) + 1) * video_width // 2
@@ -209,7 +213,6 @@ def average_image():
         bounds[light_id] = bound
 
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
-    rgb = {}
     rgb_bytes = {}
     rgb_colors = {}
 
@@ -225,14 +228,12 @@ def average_image():
 ####################################
 def send_colors_to_lights():
     # Hold on for connection to bridge can be made & video capture is configured
-    time.sleep(1.3)
+    time.sleep(2.5)
 
     while not stop_stream:
-        #buffer_lock.acquire()
         for light_id, rgb in rgb_colors.items():
             api.set_color((rgb[0], rgb[1], rgb[2]), indices=[light_id])
             # api.set_brightness(rgb[3], indices=[light_id])
-        #buffer_lock.release()
 
 
 ####################################
