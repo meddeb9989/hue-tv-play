@@ -114,10 +114,10 @@ def init_light_locations():
     global light_locations
 
     light_locations = {
-        "up_right_light": [0.5, 1.0, 0.0],
-        "up_left_light": [-0.5, 1.0, 0.0],
-        "down_right_light": [0.5, 0.5, 0.0],
-        "down_left_light": [-0.5, 0.5, 0.0]
+        "up_right_light": [0.0, 1.0],
+        "up_left_light": [1.0, 1.0],
+        "down_right_light": [0.0, 0.0],
+        "down_left_light": [1.0, 0.0]
     }
 
     if not cmd_args.up_left_light:
@@ -165,7 +165,7 @@ def init_light_locations():
 ####################################
 def configure_rgb_frames():
     global video_width, video_height, rgb_frame
-
+    time.sleep(2)  # wait for animation start complete
     # Init video capture
     capture = cv2.VideoCapture(0)
 
@@ -205,10 +205,10 @@ def average_image():
     time.sleep(2.2)  # wait for video size to be defined
     for light_id, light_pos in light_locations.items():
         # Translates x value and resizes to video aspect ratio
-        light_pos[0] = ((light_pos[0]) + 1) * video_width // 2
+        light_pos[0] = light_pos[0] * video_width // 2
 
         # Flips y, translates, and resize to vid aspect ratio
-        light_pos[2] = (-1 * (light_pos[2]) + 1) * video_height // 2
+        light_pos[1] = light_pos[1] * video_height // 2
 
     scaled_locations = list(light_locations.items())  # Makes it a list of locations by light
     verbose("Lights and locations (in order) on TV array after math are: ", scaled_locations)
@@ -229,7 +229,7 @@ def average_image():
     bounds = {}
     for light_id, coordinates in scaled_locations:
         coords[light_id] = coordinates
-        bound = [coordinates[2] - dist, coordinates[2] + dist, coordinates[0] - dist, coordinates[0] + dist]
+        bound = [coordinates[1] - dist, coordinates[1] + dist, coordinates[0] - dist, coordinates[0] + dist]
         bound = list(map(int, bound))
         bound = list(map(lambda x: 0 if x < 0 else x, bound))
         bounds[light_id] = bound
@@ -241,7 +241,7 @@ def average_image():
     # Constantly sets RGB values by location via taking average of nearby pixels
     while not stop_stream:
         for light_id, bound in bounds.items():
-            area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
+            area = rgb_frame[bound[0]:bound[1], bound[1]:bound[1], :]
             rgb_colors[light_id] = cv2.mean(area)
 
 
