@@ -318,7 +318,7 @@ def send_colors_to_lights():
                 payload.update({"bri": cmd_args.brightness})
             light.set_state(payload)
         buffer_lock.release()
-        time.sleep(.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
+        # time.sleep(.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
 
 
 ####################################
