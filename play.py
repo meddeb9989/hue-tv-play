@@ -24,23 +24,15 @@ cmd_args = parser.parse_args()
 class CustomHueLight(HueLight):
     def __init__(self, *args, **kwargs):
         super(CustomHueLight, self).__init__(*args, **kwargs)
-        self._is_off = None
+        self._brightness = None
 
     @property
-    def is_off(self):
-        return self._is_off
+    def brightness(self):
+        return self._brightness
 
-    @is_off.setter
-    def is_off(self, is_off):
-        self._is_off = is_off
-
-    def set_off(self):
-        super(CustomHueLight, self).set_off()
-        self._is_off = True
-
-    def set_on(self):
-        super(CustomHueLight, self).set_on()
-        self._is_off = False
+    @brightness.setter
+    def brightness(self, brightness):
+        self._brightness = brightness
 
 
 class CustomHueApi(HueApi):
@@ -318,8 +310,11 @@ def send_colors_to_lights():
         for light, (hue, saturation) in rgb_colors.items():
             payload = {'hue': hue, 'sat': saturation}
             if hue == 0 and light.state.brightness != 0:
+                light.brightness = 0
                 payload.update({"bri": 0})
-            elif hue != 0 and light.state.brightness == 0:
+
+            elif hue != 0 and light.brightness == 0:
+                light.brightness = cmd_args.brightness
                 payload.update({"bri": cmd_args.brightness})
             light.set_state(payload)
         buffer_lock.release()
