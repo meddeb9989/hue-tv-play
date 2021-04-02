@@ -13,7 +13,7 @@ from hue_api.lights import HueLight
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
-parser.add_argument("-b", "--bridgeid", dest="bridge_id")
+parser.add_argument("-br", "--brightness", dest="brightness", default=100)
 parser.add_argument("-ull", "--upleftlight", dest="up_left_light")
 parser.add_argument("-url", "--uprightlight", dest="up_right_light")
 parser.add_argument("-dll", "--downleftlight", dest="down_left_light")
@@ -125,7 +125,7 @@ def animation_light_on(light):
         time.sleep(0.2)
         light.set_brightness(254)
         time.sleep(0.2)
-        light.set_brightness(100)
+        light.set_brightness(cmd_args.brightness)
     except FailedToSetState:
         verbose(f"Error on config set light on for light: {light.name}")
 
@@ -158,14 +158,6 @@ def get_hue_color_from_rgba(rgba):
     hue = int((2 ** 16 - 1) * h)
     saturation = int((2 ** 8 - 1) * s)
     return hue, saturation
-
-
-def change_light_color(light, rgba):
-    try:
-        hue, saturation = get_hue_color_from_rgba(rgba)
-        light.set_color(hue, saturation)
-    except FailedToSetState:
-        verbose(f"Error on change light color for light: {light.name}")
 
 
 def get_light_by_name(name):
@@ -311,7 +303,7 @@ def average_image():
     while not stop_stream:
         for light_id, bound in bounds.items():
             area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
-            rgb_colors[light_id] = cv2.mean(area)
+            rgb_colors[light_id] = get_hue_color_from_rgba(cv2.mean(area))
 
 
 ####################################
@@ -323,8 +315,7 @@ def send_colors_to_lights():
     verbose("Start sending colors to lights...")
     while not stop_stream:
         buffer_lock.acquire()
-        for light, rgba in rgb_colors.items():
-            hue, saturation = get_hue_color_from_rgba(rgba)
+        for light, (hue, saturation) in rgb_colors.items():
             light.set_color(hue, saturation)
         buffer_lock.release()
         time.sleep(.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
