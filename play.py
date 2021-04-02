@@ -312,7 +312,7 @@ def average_image():
 def send_colors_to_lights():
     # Hold on for connection to bridge can be made & video capture is configured
     time.sleep(2.5)
-    verbose("Start sending colors to lights...")
+    verbose("Streaming colors to lights... (Press Enter to stop streaming)")
     while not stop_stream:
         buffer_lock.acquire()
         for light, (hue, saturation) in rgb_colors.items():
