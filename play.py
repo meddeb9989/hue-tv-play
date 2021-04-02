@@ -316,7 +316,7 @@ def send_colors_to_lights():
     while not stop_stream:
         buffer_lock.acquire()
         for light, (hue, saturation) in rgb_colors.items():
-            light.set_color(hue, saturation)
+            light.set_state({'hue': hue, 'sat': saturation})
         buffer_lock.release()
         time.sleep(.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
 
