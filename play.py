@@ -320,10 +320,14 @@ def average_image():
 def send_colors_to_lights():
     # Hold on for connection to bridge can be made & video capture is configured
     time.sleep(2.5)
-
+    verbose("Start sending colors to lights...")
     while not stop_stream:
+        buffer_lock.acquire()
         for light, rgba in rgb_colors.items():
-            change_light_color(light, rgba)
+            hue, saturation = get_hue_color_from_rgba(rgba)
+            light.set_color(hue, saturation)
+        buffer_lock.release()
+        time.sleep(.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
 
 
 ####################################
