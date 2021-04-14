@@ -27,7 +27,7 @@ cmd_args = parser.parse_args()
 
 class CustomHueGroup(HueGroup):
     def __init__(self, *args, **kwargs):
-        super(CustomHueLight, self).__init__(*args, **kwargs)
+        super(CustomHueGroup, self).__init__(*args, **kwargs)
         self.type = kwargs.pop("type", None)
         self.locations = kwargs.pop("locations", {})
 
