@@ -1,4 +1,6 @@
 import json
+import pickle
+import subprocess
 import sys
 import threading
 import time
@@ -8,10 +10,12 @@ import colorsys
 import requests
 import argparse
 from hue_api import HueApi
-from hue_api.exceptions import UninitializedException, ButtonNotPressedException, FailedToSetState
+from hue_api.exceptions import UninitializedException, ButtonNotPressedException, FailedToSetState, DevicetypeException
+from hue_api.groups import HueGroup
 from hue_api.lights import HueLight
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-s", "--stream", dest="stream", action="store_true")
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
 parser.add_argument("-br", "--brightness", dest="brightness", default=100)
 parser.add_argument("-ull", "--upleftlight", dest="up_left_light")
@@ -19,6 +23,13 @@ parser.add_argument("-url", "--uprightlight", dest="up_right_light")
 parser.add_argument("-dll", "--downleftlight", dest="down_left_light")
 parser.add_argument("-drl", "--downrightlight", dest="down_right_light")
 cmd_args = parser.parse_args()
+
+
+class CustomHueGroup(HueGroup):
+    def __init__(self, *args, **kwargs):
+        super(CustomHueLight, self).__init__(*args, **kwargs)
+        self.type = kwargs.pop("type", None)
+        self.locations = kwargs.pop("locations", {})
 
 
 class CustomHueLight(HueLight):
@@ -36,17 +47,73 @@ class CustomHueLight(HueLight):
 
 
 class CustomHueApi(HueApi):
+    def __init__(self, *args, **kwargs):
+        super(CustomHueApi, self).__init__(*args, **kwargs)
+        self.bridge_ip_address = None
+        self.user_name = None
+        self.client_key = None
+        self.base_url = None
+
+    def load_existing(self, *args, **kwargs):
+        try:
+            cache_file = kwargs.get("cache_file") or self.find_cache_file()
+            with open(cache_file, "rb") as cached_file:
+                loaded = pickle.load(cached_file)
+            bridge_ip_address = loaded.get("bridge_ip_address")
+            user_name = loaded.get("user_name")
+            client_key = loaded.get("clientkey")
+        except FileNotFoundError:
+            raise UninitializedException
+        self.bridge_ip_address = bridge_ip_address
+        self.user_name = user_name
+        self.client_key = client_key
+        self.base_url = f"http://{bridge_ip_address}/api/{user_name}"
+
+    def create_new_user(self, bridge_ip_address, *args, **kwargs):
+        url = f"http://{bridge_ip_address}/api"
+        payload = {"devicetype": "hue_cli"}
+        response = requests.post(url, json=payload)
+        response = response.json()[0]
+        error = response.get("error")
+        if error:
+            if error["type"] == 1:
+                raise DevicetypeException
+            else:
+                raise ButtonNotPressedException
+        user_name = response.get("success").get("username")
+        client_key = response.get("success").get("clientkey")
+        self.user_name = user_name
+        self.client_key = client_key
+        self.bridge_ip_address = bridge_ip_address
+        self.base_url = f"http://{bridge_ip_address}/api/{user_name}"
+
     def fetch_lights(self, *args, **kwargs):
         url = self.base_url + "/lights"
         response = requests.get(url).json()
         lights = []
         for light_id in response:
-            state = response[light_id].get('state')
-            name = response[light_id].get('name')
+            state = response[light_id].get("state")
+            name = response[light_id].get("name")
             hue_light = CustomHueLight(int(light_id), name, state, url)
             lights.append(hue_light)
         self.lights = lights
         return lights
+
+    def fetch_groups(self, *args, **kwargs):
+        url = self.base_url + "/groups"
+        response = requests.get(url).json()
+        groups = []
+        for group_id in response:
+            group_name = response[group_id].get("name")
+            group_type = response[group_id].get("type")
+            group_locations = response[group_id].get("locations")
+            lights = [int(light) for light in response[group_id].get("lights")]
+            group_lights = self.filter_lights(lights)
+            groups.append(
+                CustomHueGroup(group_id, group_name, group_lights, type=group_type, locations=group_locations)
+            )
+        self.groups = groups
+        return groups
 
 
 def verbose(*args, **kwargs):
@@ -97,7 +164,7 @@ def hue_login():
                 print("Try again in three seconds...")
                 time.sleep(3)
 
-        open('cache', 'w+')
+        open("cache", "w+")
         api.save_api_key(cache_file="cache")
         verbose(f"User saved on cache")
 
@@ -164,53 +231,66 @@ def get_light_by_name(name):
 
 def init_light_locations():
     global light_locations
+    if cmd_args.stream:
+        light_locations = {}
+        for group in api.fetch_groups():
+            if group.type == "Entertainment":
+                light_locations.update(group.locations)
 
-    light_locations = {
-        # light positions [x, y]
-        "up_right_light": [0.5, 1.0, 0.0],
-        "up_left_light": [-0.5, 1.0, 0.0],
-        "down_right_light": [0.5, 1.0, 0.0],
-        "down_left_light": [-0.5, 1.0, 0.0]
-    }
+        if not light_locations:
+            print(
+                "Error: no Entertainment zone found, "
+                "you must configure your Entertainment zone on your hue app before using 'stream' mode"
+            )
+            sys.exit(0)
 
-    if not cmd_args.up_left_light:
-        del light_locations["up_left_light"]
     else:
-        light = get_light_by_name(cmd_args.up_left_light)
-        light_locations[light] = light_locations.get("up_left_light")
-        del light_locations["up_left_light"]
-        verbose("Up-left light configured successfully")
+        light_locations = {
+            # light positions [x, y]
+            "up_right_light": [0.5, 1.0, 0.0],
+            "up_left_light": [-0.5, 1.0, 0.0],
+            "down_right_light": [0.5, 1.0, 0.0],
+            "down_left_light": [-0.5, 1.0, 0.0],
+        }
 
-    if not cmd_args.up_right_light:
-        del light_locations["up_right_light"]
-    else:
-        light = get_light_by_name(cmd_args.up_right_light)
-        light_locations[light] = light_locations.get("up_right_light")
-        del light_locations["up_right_light"]
-        verbose("Up-right light configured successfully")
+        if not cmd_args.up_left_light:
+            del light_locations["up_left_light"]
+        else:
+            light = get_light_by_name(cmd_args.up_left_light)
+            light_locations[light] = light_locations.get("up_left_light")
+            del light_locations["up_left_light"]
+            verbose("Up-left light configured successfully")
 
-    if not cmd_args.down_left_light:
-        del light_locations["down_left_light"]
-    else:
-        light = get_light_by_name(cmd_args.down_left_light)
-        light_locations[light] = light_locations.get("down_left_light")
-        del light_locations["down_left_light"]
-        verbose("Down-left light configured successfully")
+        if not cmd_args.up_right_light:
+            del light_locations["up_right_light"]
+        else:
+            light = get_light_by_name(cmd_args.up_right_light)
+            light_locations[light] = light_locations.get("up_right_light")
+            del light_locations["up_right_light"]
+            verbose("Up-right light configured successfully")
 
-    if not cmd_args.down_right_light:
-        del light_locations["down_right_light"]
-    else:
-        light = get_light_by_name(cmd_args.down_right_light)
-        light_locations[light] = light_locations.get("down_right_light")
-        del light_locations["down_right_light"]
-        verbose("Down-right light configured successfully")
+        if not cmd_args.down_left_light:
+            del light_locations["down_left_light"]
+        else:
+            light = get_light_by_name(cmd_args.down_left_light)
+            light_locations[light] = light_locations.get("down_left_light")
+            del light_locations["down_left_light"]
+            verbose("Down-left light configured successfully")
 
-    if not light_locations:
-        print(
-            "Error: no lights provided, "
-            "you must provide either right-light (-rl) name or left-light (-ll) name or both"
-        )
-        sys.exit(0)
+        if not cmd_args.down_right_light:
+            del light_locations["down_right_light"]
+        else:
+            light = get_light_by_name(cmd_args.down_right_light)
+            light_locations[light] = light_locations.get("down_right_light")
+            del light_locations["down_right_light"]
+            verbose("Down-right light configured successfully")
+
+        if not light_locations:
+            print(
+                "Error: no lights provided, "
+                "you must provide either right-light (-rl) name or left-light (-ll) name or both"
+            )
+            sys.exit(0)
 
 
 ####################################
@@ -224,7 +304,7 @@ def configure_rgb_frames():
 
     # Try to get the first frame
     if capture.isOpened():
-        verbose('Capture Device Opened')
+        verbose("Capture Device Opened")
 
     else:
         verbose("Unable to open Capture Device, please check your configuration")
@@ -268,11 +348,11 @@ def average_image():
 
     # This section assigns light locations to variable light1,2,3...etc. in JSON order
     avg_size = video_width / 2 + video_height / 2
-    verbose('Average size is: ', avg_size)
+    verbose("Average size is: ", avg_size)
 
-    breadth = .15  # approx percent of the screen outside the location to capture
+    breadth = 0.15  # approx percent of the screen outside the location to capture
     dist = int(breadth * avg_size)  # proportion of the pixels we want to average around in relation to the video size
-    verbose('Distance from relative location is: ', dist)
+    verbose("Distance from relative location is: ", dist)
 
     global coords  # dict of coordinates
     global bounds  # dict of bounds for each coord, each item is formatted as [top, bottom, left, right]
@@ -290,12 +370,19 @@ def average_image():
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
     rgb_bytes = {}
     rgb_colors = {}
+    rgb = {}
 
     # Constantly sets RGB values by location via taking average of nearby pixels
     while not stop_stream:
         for light_id, bound in bounds.items():
-            area = rgb_frame[bound[0]:bound[1], bound[2]:bound[3], :]
-            rgb_colors[light_id] = get_hue_color_from_rgba(cv2.mean(area))
+            area = rgb_frame[bound[0] : bound[1], bound[2] : bound[3], :]
+            rgb = cv2.mean(area)
+            rgb_colors[light_id] = get_hue_color_from_rgba(rgb)
+
+        for x, c in rgb.items():
+            rgb_bytes[x] = bytearray(
+                [int(c[0] / 2), int(c[0] / 2), int(c[1] / 2), int(c[1] / 2), int(c[2] / 2), int(c[2] / 2)]
+            )
 
 
 ####################################
@@ -310,9 +397,29 @@ def send_colors_to_lights():
         for light, (hue, saturation) in rgb_colors.items():
             if hue == 0:
                 saturation = 0
-            light.set_state({'hue': hue, 'sat': saturation})
+            light.set_state({"hue": hue, "sat": saturation})
         buffer_lock.release()
         # time.sleep(.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
+
+
+#########################################
+#  Stream colors to Entertainment zone  #
+#########################################
+def stream_colors_to_entertainment_zone(proc):
+    # Hold on for connection to bridge can be made & video capture is configured
+    time.sleep(2.5)
+    verbose("Streaming colors to Entertainment zone... (Press Enter to stop streaming)")
+    while not stop_stream:
+        buffer_lock.acquire()
+
+        message = bytes("HueStream", "utf-8") + b"\1\0\0\0\0\0\0"
+        for i in rgb_bytes:
+            message += b"\0\0" + bytes(chr(int(i)), "utf-8") + rgb_bytes[i]
+
+        buffer_lock.release()
+        proc.stdin.write(message.decode("utf-8", "ignore"))
+        time.sleep(0.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
+        proc.stdin.flush()
 
 
 ####################################
@@ -331,16 +438,42 @@ def run_hue_play():
             t = threading.Thread(target=configure_rgb_frames)
             t.start()
             threads.append(t)
-            time.sleep(.75)
+            time.sleep(0.75)
             verbose("Starting Average image...")
             t = threading.Thread(target=average_image)
             t.start()
             threads.append(t)
-            time.sleep(.25)  # Initialize and find bridge IP before creating connection
-            verbose("Starting Send colors to Lights...")
-            t = threading.Thread(target=send_colors_to_lights)
-            t.start()
-            threads.append(t)
+            time.sleep(0.25)  # Initialize and find bridge IP before creating connection
+            if cmd_args.stream:
+                verbose("Starting stream colors to hue Entertainment zone...")
+                cmd = [
+                    "openssl",
+                    "s_client",
+                    "-dtls1_2",
+                    "-cipher",
+                    "PSK-AES128-GCM-SHA256",
+                    "-psk_identity",
+                    api.user_name,
+                    "-psk",
+                    api.client_key,
+                    "-connect",
+                    f"{api.bridge_ip_address}:2100",
+                ]
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stdin=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True,
+                )
+                t = threading.Thread(target=stream_colors_to_entertainment_zone, args=(proc,))
+                t.start()
+                threads.append(t)
+            else:
+                verbose("Starting Send colors to Lights...")
+                t = threading.Thread(target=send_colors_to_lights)
+                t.start()
+                threads.append(t)
 
             input("Press ENTER to stop")  # Allow us to exit easily
             stop_stream = True
@@ -360,8 +493,7 @@ if __name__ == "__main__":
     ####################################
     #        Init global vars          #
     ####################################
-    global api, buffer_lock, stop_stream, light_locations, video_width, \
-        video_height, rgb_frame, rgb_colors, rgb_bytes, coords, bounds
+    global api, buffer_lock, stop_stream, light_locations, video_width, video_height, rgb_frame, rgb_colors, rgb_bytes, coords, bounds
     # login to hue bridge
     hue_login()
     # init lights location
