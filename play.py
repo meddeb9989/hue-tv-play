@@ -243,10 +243,11 @@ def init_light_locations():
         light_locations = {}
         for group in api.fetch_groups():
             if group.type == "Entertainment":
-                group_locations = {}
+                verbose(f"Entertainment zone: {group.name} found")
                 for light_id, locations in group.locations:
-                    group_locations.update({get_light_by_id(int(light_id)): locations})
-                light_locations.update(group_locations)
+                    light = get_light_by_id(int(light_id))
+                    light_locations.update({light: locations})
+                    verbose(f"Light: {light.name} with locations: {locations} configured successfully")
 
         if not light_locations:
             print(
