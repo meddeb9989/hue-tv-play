@@ -108,6 +108,7 @@ class CustomHueApi(HueApi):
             group_type = response[group_id].get("type")
             group_locations = response[group_id].get("locations")
             lights = [int(light) for light in response[group_id].get("lights")]
+            self.fetch_lights()
             group_lights = self.filter_lights(lights)
             groups.append(CustomHueGroup(group_id, group_name, group_lights, group_type, group_locations))
         self.groups = groups
