@@ -243,8 +243,9 @@ def init_light_locations():
         light_locations = {}
         for group in api.fetch_groups():
             if group.type == "Entertainment":
-                verbose(f"Entertainment zone: {group.name} found")
+                verbose(f"Entertainment zone: {group.name} found, locations: {group.locations}")
                 for light in group.lights:
+                    verbose(f"Light: {light.id} - {light.name}")
                     locations = group.locations.get(str(light.id))
                     light_locations.update({light: locations})
                     verbose(f"Light: {light.name} with locations: {locations} configured successfully")
