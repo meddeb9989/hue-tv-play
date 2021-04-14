@@ -245,7 +245,7 @@ def init_light_locations():
             if group.type == "Entertainment":
                 group_locations = {}
                 for light_id, locations in group.locations:
-                    group_locations.update({get_light_by_id(light_id): locations})
+                    group_locations.update({get_light_by_id(int(light_id)): locations})
                 light_locations.update(group_locations)
 
         if not light_locations:
