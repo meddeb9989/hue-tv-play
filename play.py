@@ -227,13 +227,26 @@ def get_light_by_name(name):
     sys.exit(0)
 
 
+def get_light_by_id(light_id):
+    for light in api.fetch_lights():
+        if light.id == light_id:
+            animation_light_on(light)
+            return light
+
+    print(f"Error: Can't find light id for name: {light_id}")
+    sys.exit(0)
+
+
 def init_light_locations():
     global light_locations
     if cmd_args.stream:
         light_locations = {}
         for group in api.fetch_groups():
             if group.type == "Entertainment":
-                light_locations.update(group.locations)
+                group_locations = {}
+                for light_id, locations in group.locations:
+                    group_locations.update({get_light_by_id(light_id): locations})
+                light_locations.update(group_locations)
 
         if not light_locations:
             print(
