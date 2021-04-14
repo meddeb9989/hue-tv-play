@@ -26,15 +26,15 @@ cmd_args = parser.parse_args()
 
 
 class CustomHueGroup(HueGroup):
-    def __init__(self, *args, **kwargs):
-        super(CustomHueGroup, self).__init__(*args, **kwargs)
-        self.type = kwargs.pop("type", None)
-        self.locations = kwargs.pop("locations", {})
+    def __init__(self, id, name, lights, type, locations):
+        super(CustomHueGroup, self).__init__(id, name, lights)
+        self.type = type
+        self.locations = locations
 
 
 class CustomHueLight(HueLight):
-    def __init__(self, *args, **kwargs):
-        super(CustomHueLight, self).__init__(*args, **kwargs)
+    def __init__(self, id, name, state_dict, base_url):
+        super(CustomHueLight, self).__init__(id, name, state_dict, base_url)
         self._brightness = None
 
     @property
@@ -109,9 +109,7 @@ class CustomHueApi(HueApi):
             group_locations = response[group_id].get("locations")
             lights = [int(light) for light in response[group_id].get("lights")]
             group_lights = self.filter_lights(lights)
-            groups.append(
-                CustomHueGroup(group_id, group_name, group_lights, type=group_type, locations=group_locations)
-            )
+            groups.append(CustomHueGroup(group_id, group_name, group_lights, group_type, group_locations))
         self.groups = groups
         return groups
 
