@@ -75,7 +75,7 @@ list_project_containers() {
 docker_sync()
 {
   if _cmd_exists docker-sync; then
-    if [ "$1" != "start" ] || ! _container_is_running "ftth360-code-sync"; then
+    if [ "$1" != "start" ] || ! _container_is_running "hue-play-code-sync"; then
       _trace docker-sync "$@"
     fi
   fi

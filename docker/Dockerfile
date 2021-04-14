@@ -1,6 +1,12 @@
 FROM python:3.8-slim-buster
 
-RUN clean-apt-install libpython-dev libqtgui4 libqt4-test libgstreamer1.0-0 libjpeg62-turbo-dev libmbedtls12 libmbedtls-dev screen gcc make
+RUN apt update --yes
+RUN apt dist-upgrade --yes
+RUN apt upgrade --yes
+RUN apt install --yes python3 python3-pip python3-requests python3-http-parser python3-dev
+RUN apt install --yes libpython-dev libqtgui4 libqt4-test libgstreamer1.0-0 libjpeg62-turbo-dev
+RUN apt install --yes libmbedtls12 libmbedtls-dev screen gcc make git
+RUN apt install --yes python3-opencv
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

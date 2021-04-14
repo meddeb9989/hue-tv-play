@@ -1,0 +1,12 @@
+version: '2.4'
+volumes:
+  hue-play-code-sync:
+    external: true
+
+x-default: &DEFAULT_MAC
+  volumes:
+    - hue-play-code-sync:/app/hue-play:nocopy
+
+services:
+  # INTERFACES
+  hue-play: *DEFAULT_MAC

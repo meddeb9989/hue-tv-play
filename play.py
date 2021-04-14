@@ -18,6 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--stream", dest="stream", action="store_true")
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
 parser.add_argument("-br", "--brightness", dest="brightness", default=100)
+parser.add_argument("-bid", "--bridgeid", dest="bridge_id")
 parser.add_argument("-ull", "--upleftlight", dest="up_left_light")
 parser.add_argument("-url", "--uprightlight", dest="up_right_light")
 parser.add_argument("-dll", "--downleftlight", dest="down_left_light")
@@ -136,10 +137,10 @@ def hue_login():
     try:
         # load existing user if saved in cache
         verbose("Trying to load user from cache")
-        api.load_existing(cache_file="cache")
+        api.load_existing(cache_file=".cache")
         verbose("User saved in cache loaded")
         return
-    except UninitializedException:
+    except (UninitializedException, EOFError):
         # auto-find bridges on network & get list
         response = requests.get("https://discovery.meethue.com/")
         bridges = json.loads(response.text)
@@ -164,7 +165,7 @@ def hue_login():
                 time.sleep(3)
 
         open("cache", "w+")
-        api.save_api_key(cache_file="cache")
+        api.save_api_key(cache_file=".cache")
         verbose(f"User saved on cache")
 
 

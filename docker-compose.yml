@@ -1,0 +1,16 @@
+version: "2.4"
+
+services:
+  hue-play:
+    build:
+      context: $ROOT_PROJECT
+      dockerfile: docker/Dockerfile
+    command: run-forever python play.py -s -v
+    restart: always
+    volumes:
+      - "${ROOT_VOLUME_PATH}:/app/hue-play"
+    ports:
+      - "8000:8000"
+    stdin_open: true
+    tty: true
+    init: true

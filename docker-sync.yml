@@ -1,0 +1,11 @@
+version: "2"
+
+syncs:
+  hue-play-code-sync:
+    src: '.'
+    sync_excludes:
+      - '.gitignore'
+      - '.coverage.*'
+      - '.python-version'
+      - '.idea'
+      - '.pytest_cache'

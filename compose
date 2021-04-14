@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+set -e
+set -o pipefail
+
+export ROOT_PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+set -o allexport
+
+COMPOSE_PROJECT_NAME="hue-play"
+MAIN_CONTAINER="hue-play"
+CONTAINER_UID=$(id -u)
+CONTAINER_GID=$(id -g)
+
+# misc
+ROOT_VOLUME_PATH=${ROOT_PROJECT}
+
+source "$ROOT_PROJECT/docker/helpers.sh"
+
+if _cmd_exists docker-sync ; then
+  COMPOSE_FILE=docker-compose.yml:docker-compose.mac.yml
+else
+  COMPOSE_FILE=docker-compose.yml
+fi
+
+set +o allexport
+
+# work from root project dir
+cd $ROOT_PROJECT
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [CMD]
+  A docker compose wrapper to simplify dev work with containers
+
+  up                     Build all project images and startup all containers
+  start                  Start already build containers
+  stop                   Stop running containers
+  restart                Stop / Start containers
+  env                    Dump all used env configuration
+  ps                     List containers
+  logs                   Tail last 20 lines of each container then follow
+  exec                   Execute a command in a given container (default: $MAIN_CONTAINER)
+  runtest [<path>]       Runs test(s) given at test path (run all tests if no path given).
+  flush                  Launch stop/down/up commands from docker-compose. KEEP named volumes.
+  flushall               Launch stop/down/pull/build/up commands from docker-compose. DELETE named volumes.
+  cleanup                Delete all containers of the current project, all untagged images, all named volumes and orphans
+  attach                 Attach local standard input, output, and error streams to a given container (default: $MAIN_CONTAINER)
+  help                   Displays this help.
+
+  -- [CMD]               Execute a docker-compose command directly
+
+  Most useful use cases examples:
+
+    Run a simple command
+    $ $(basename "$0") up
+    $ $(basename "$0") logs
+    $ $(basename "$0") flush
+    $ $(basename "$0") exec
+
+    Run a docker-compose command
+    $ $(basename "$0") -- pull|build|top|..
+    $ $(basename "$0") -- help
+EOF
+}
+
+if [ $# -eq 0 ]; then
+    CMD=
+else
+    CMD=$1
+    shift
+fi
+
+
+case "$CMD" in
+up)
+    _print "Starting/building containers..."
+    docker_sync start
+    $0 build "$1"
+    docker_compose up -d "$(_container_name_to_compose_app "$1")"
+    _print "It's ready !"
+    ;;
+start)
+    _print "Starting containers..."
+    docker_compose start "$(_container_name_to_compose_app "$1")"
+    ;;
+stop)
+    _print "Stopping containers..."
+    docker_compose stop "$(_container_name_to_compose_app "$1")"
+    ;;
+restart)
+    _print "Restarting containers..."
+    docker_compose stop "$(_container_name_to_compose_app "$1")"
+    docker_compose start "$(_container_name_to_compose_app "$1")"
+    ;;
+ps | info)
+    if [ "$1" == "-q" ]; then
+        list_project_containers
+    else
+        list_project_containers --format "table {{.Names}}\t{{.Status}}\t{{.Image}}\t{{.Command}}" --no-trunc
+    fi
+    ;;
+logs)
+    if [ $# -eq 0 ]; then
+        container_name=$MAIN_CONTAINER
+    else
+        container_name=$1
+        shift
+    fi
+    _print "Logging..."
+    docker logs --tail=100 -f ${COMPOSE_PROJECT_NAME}_${container_name}_1
+    ;;
+exec)
+    if [ $# -eq 0 ]; then
+        container_name=$MAIN_CONTAINER
+    else
+        container_name=$1
+        shift
+    fi
+    docker_compose_execute "$(_container_name_to_compose_app $container_name)" "$@"
+    ;;
+runtest|test)
+    docker_sync start
+    docker_compose run -e S6_LOGGING=1 -e S6_KILL_GRACETIME=0 -e --entrypoint /init --rm $MAIN_CONTAINER \
+        pytest -Werror --durations=15 --capture=sys --color=yes --cov=. "$@"
+    ;;
+runtest-with-coverage)
+    docker_sync start
+    "$0" runtest --cov-report xml --cov-report html "$@"
+    ;;
+pip-list)
+    docker_compose run --rm $MAIN_CONTAINER python -m pip list --format=columns
+    ;;
+flush)
+    _print "Running flush..."
+    docker_compose rm --force --stop -v
+    docker_sync clean
+    ;;
+flushall|cleanup|clean)
+    _print "Running flushall..."
+    $0 flush
+    _print "Removing named volumes and orphans..."
+    docker_compose down -v --remove-orphans --rmi local
+    ;;
+attach)
+    if [ $# -eq 0 ]; then
+        container_name=$MAIN_CONTAINER
+    else
+        container_name=$1
+        shift
+    fi
+    _print "[CTRL-p CTRL-q to detach from the container and leave it running]"
+    docker attach ${COMPOSE_PROJECT_NAME}_${container_name}_1
+    ;;
+build)
+    docker_compose build --pull "$@"
+    ;;
+config | down | pull | push | rm | run | top)
+    docker_compose "$CMD" "$@"
+    ;;
+--)
+    docker_compose "$@"
+    ;;
+help | --help | -h)
+    usage
+    exit 0
+    ;;
+*)
+    usage
+    exit 1
+    ;;
+esac
