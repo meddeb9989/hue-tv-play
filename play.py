@@ -26,15 +26,15 @@ cmd_args = parser.parse_args()
 
 
 class CustomHueGroup(HueGroup):
-    def __init__(self, id, name, lights, type, locations):
-        super(CustomHueGroup, self).__init__(id, name, lights)
-        self.type = type
-        self.locations = locations
+    def __init__(self, group_id, group_name, group_lights, group_type, group_locations):
+        super(CustomHueGroup, self).__init__(group_id, group_name, group_lights)
+        self.type = group_type
+        self.locations = group_locations
 
 
 class CustomHueLight(HueLight):
-    def __init__(self, id, name, state_dict, base_url):
-        super(CustomHueLight, self).__init__(id, name, state_dict, base_url)
+    def __init__(self, light_id, name, state_dict, base_url):
+        super(CustomHueLight, self).__init__(light_id, name, state_dict, base_url)
         self._brightness = None
 
     @property
@@ -244,8 +244,8 @@ def init_light_locations():
         for group in api.fetch_groups():
             if group.type == "Entertainment":
                 verbose(f"Entertainment zone: {group.name} found")
-                for light_id, locations in group.locations:
-                    light = get_light_by_id(int(light_id))
+                for light in group.lights:
+                    locations = group.locations.get(str(light.id))
                     light_locations.update({light: locations})
                     verbose(f"Light: {light.name} with locations: {locations} configured successfully")
 
