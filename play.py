@@ -13,6 +13,7 @@ import cv2
 import colorsys
 import requests
 import argparse
+from signal import signal, SIGPIPE, SIG_DFL
 from hue_api import HueApi
 from hue_api.exceptions import UninitializedException, ButtonNotPressedException, FailedToSetState, DevicetypeException
 from hue_api.groups import HueGroup
@@ -541,6 +542,8 @@ def run_hue_play():
                     "-connect",
                     f"{api.bridge_ip_address}:2100",
                 ]
+                # Ignore SIG_PIPE and don't throw exceptions on it... (http://docs.python.org/library/signal.html)
+                signal(SIGPIPE, SIG_DFL)
                 proc = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
