@@ -90,7 +90,7 @@ class CustomHueApi(HueApi):
         url = f"http://{bridge_ip_address}/api"
         payload = {"devicetype": "hue_cli"}
         if cmd_args.stream or cmd_args.stream_gradient:
-            payload = {"devicetype": "harmonizehue", "generateclientkey": True}
+            payload = {"devicetype": "hue_cli", "generateclientkey": True}
         response = requests.post(url, json=payload)
         response = response.json()[0]
         error = response.get("error")
