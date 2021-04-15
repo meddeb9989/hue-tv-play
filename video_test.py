@@ -5,16 +5,16 @@ import cv2  # Script Last Updated - Release 1.1.2
 print("Press ESC to exit.")
 
 cv2.namedWindow("preview")
-capture = cv2.VideoCapture(0)
+vc = cv2.VideoCapture(0)
 
-ret_val = False
+if vc.isOpened():  # try to get the first frame
+    rval, frame = vc.read()
+else:
+    rval = False
 
-if capture.isOpened():  # try to get the first frame
-    ret_val, image = capture.read()
-
-while ret_val:
-    cv2.imshow("preview", image)
-    ret_val, frame = capture.read()
+while rval:
+    cv2.imshow("preview", frame)
+    rval, frame = vc.read()
     key = cv2.waitKey(20)
     if key == 27:  # exit on ESC
         break
