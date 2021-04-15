@@ -486,10 +486,14 @@ def stream_colors_to_entertainment_zone(proc):
         buffer_lock.acquire()
 
         message = bytes("HueStream", "utf-8") + b"\1\0\0\0\0\0\0"
-        for light_id, colors_bytes in rgb_bytes.items():
-            if cmd_args.stream_gradient and api.lightstrip_gradient:
-                light_id = api.lightstrip_gradient.id
-            message += b"\0\0" + bytes(chr(int(light_id)), "utf-8") + colors_bytes
+        if cmd_args.stream_gradient and api.lightstrip_gradient:
+            light_id = api.lightstrip_gradient.id
+            message += b"\0\0" + bytes(chr(int(light_id)), "utf-8")
+            for colors_bytes in rgb_bytes.values():
+                message += colors_bytes
+        else:
+            for light_id, colors_bytes in rgb_bytes.items():
+                message += b"\0\0" + bytes(chr(int(light_id)), "utf-8") + colors_bytes
 
         buffer_lock.release()
         proc.stdin.write(message.decode("utf-8", "ignore"))
