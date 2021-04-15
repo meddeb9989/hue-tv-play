@@ -499,7 +499,7 @@ def stream_colors_to_entertainment_zone(proc):
             for light_id, colors_bytes in rgb_bytes.items():
                 message += b"\0\0" + bytes(chr(int(light_id)), "utf-8") + colors_bytes
         verbose(f"rgb_bytes: {rgb_bytes}")
-        verbose(f'message: {message.decode("utf-8", "ignore")}')
+        verbose(f"message: {message}")
         verbose(f'message decoded: {message.decode("utf-8", "ignore")}')
         buffer_lock.release()
         proc.stdin.write(message.decode("utf-8", "ignore"))
