@@ -387,6 +387,7 @@ def configure_rgb_frames():
         if capture_index % 1 == 0:  # Skip frames (1=don't skip,2=skip half,3=skip 2/3rds)
             frame, bgr_frame = capture.retrieve()  # processes most recent frame
             rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)  # corrects BGR to RGB
+            verbose(f"capturing frames {rgb_frame}")
 
         # if no new frame: stop loop
         if not frame:
@@ -398,7 +399,7 @@ def configure_rgb_frames():
 ####################################
 def average_image():
     # Scales up locations to identify the nearest pixel based on lights locations
-    time.sleep(2.2)  # wait for video size to be defined
+    time.sleep(2.5)  # wait for video size to be defined
     for light, light_pos in light_locations.items():
         # Translates x value and resizes to video aspect ratio
         light_pos[0] = ((light_pos[0]) + 1) * video_width // 2
@@ -462,7 +463,7 @@ def average_image():
 def send_colors_to_lights():
     global rgb_colors
     # Hold on for connection to bridge can be made & video capture is configured
-    time.sleep(2.5)
+    time.sleep(3)
     verbose("Streaming colors to lights... (Press Enter to stop streaming)")
     while not stop_stream:
         buffer_lock.acquire()
