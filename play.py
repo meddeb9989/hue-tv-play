@@ -480,7 +480,7 @@ def send_colors_to_lights():
 def stream_colors_to_entertainment_zone(proc):
     global rgb_bytes
     # Hold on for connection to bridge can be made & video capture is configured
-    time.sleep(2.5)
+    time.sleep(3)
     verbose("Streaming colors to Entertainment zone... (Press Enter to stop streaming)")
     while not stop_stream:
         buffer_lock.acquire()
