@@ -494,7 +494,7 @@ def stream_colors_to_entertainment_zone(proc):
         else:
             for light_id, colors_bytes in rgb_bytes.items():
                 message += b"\0\0" + bytes(chr(int(light_id)), "utf-8") + colors_bytes
-
+        verbose(f'message: {message.decode("utf-8", "ignore")}')
         buffer_lock.release()
         proc.stdin.write(message.decode("utf-8", "ignore"))
         time.sleep(0.02)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
