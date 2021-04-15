@@ -4,6 +4,8 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
+
 import cv2
 
 import colorsys
@@ -16,6 +18,7 @@ from hue_api.lights import HueLight
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "--stream", dest="stream", action="store_true")
+parser.add_argument("-sgr", "--streamgradient", dest="stream_gradient", action="store_true")
 parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
 parser.add_argument("-br", "--brightness", dest="brightness", default=100)
 parser.add_argument("-bid", "--bridgeid", dest="bridge_id")
@@ -34,8 +37,9 @@ class CustomHueGroup(HueGroup):
 
 
 class CustomHueLight(HueLight):
-    def __init__(self, light_id, name, state_dict, base_url):
+    def __init__(self, light_id, name, state_dict, base_url, product_name):
         super(CustomHueLight, self).__init__(light_id, name, state_dict, base_url)
+        self.product_name = product_name
         self._brightness = None
 
     @property
@@ -54,6 +58,15 @@ class CustomHueApi(HueApi):
         self.user_name = None
         self.client_key = None
         self.base_url = None
+        self._lightstrip_gradient = None
+
+    @property
+    def lightstrip_gradient(self):
+        return self._lightstrip_gradient
+
+    @lightstrip_gradient.setter
+    def lightstrip_gradient(self, lightstrip_gradient):
+        self._lightstrip_gradient = lightstrip_gradient
 
     def load_existing(self, *args, **kwargs):
         try:
@@ -62,17 +75,20 @@ class CustomHueApi(HueApi):
                 loaded = pickle.load(cached_file)
             bridge_ip_address = loaded.get("bridge_ip_address")
             user_name = loaded.get("user_name")
-            client_key = loaded.get("clientkey")
+            if cmd_args.stream or cmd_args.stream_gradient:
+                client_key = loaded.get("client_key")
+                self.client_key = client_key
         except FileNotFoundError:
             raise UninitializedException
         self.bridge_ip_address = bridge_ip_address
         self.user_name = user_name
-        self.client_key = client_key
         self.base_url = f"http://{bridge_ip_address}/api/{user_name}"
 
     def create_new_user(self, bridge_ip_address, *args, **kwargs):
         url = f"http://{bridge_ip_address}/api"
         payload = {"devicetype": "hue_cli"}
+        if cmd_args.stream or cmd_args.stream_gradient:
+            payload = {"devicetype": "harmonizehue", "generateclientkey": True}
         response = requests.post(url, json=payload)
         response = response.json()[0]
         error = response.get("error")
@@ -82,11 +98,23 @@ class CustomHueApi(HueApi):
             else:
                 raise ButtonNotPressedException
         user_name = response.get("success").get("username")
-        client_key = response.get("success").get("clientkey")
+        if cmd_args.stream or cmd_args.stream_gradient:
+            client_key = response.get("success").get("clientkey")
+            self.client_key = client_key
         self.user_name = user_name
-        self.client_key = client_key
         self.bridge_ip_address = bridge_ip_address
         self.base_url = f"http://{bridge_ip_address}/api/{user_name}"
+
+    def save_api_key(self, *args, **kwargs):
+        cache_file = kwargs.get("cache_file") or self.find_cache_file()
+        with open(cache_file, "wb") as pickle_file:
+            cache = {
+                "bridge_ip_address": self.bridge_ip_address,
+                "user_name": self.user_name,
+            }
+            if cmd_args.stream or cmd_args.stream_gradient:
+                cache.update({"client_key": self.client_key})
+            pickle.dump(cache, pickle_file)
 
     def fetch_lights(self, *args, **kwargs):
         url = self.base_url + "/lights"
@@ -95,7 +123,8 @@ class CustomHueApi(HueApi):
         for light_id in response:
             state = response[light_id].get("state")
             name = response[light_id].get("name")
-            hue_light = CustomHueLight(int(light_id), name, state, url)
+            product_name = response[light_id].get("productname")
+            hue_light = CustomHueLight(int(light_id), name, state, url, product_name)
             lights.append(hue_light)
         self.lights = lights
         return lights
@@ -164,7 +193,7 @@ def hue_login():
                 print("Try again in three seconds...")
                 time.sleep(3)
 
-        open("cache", "w+")
+        open(".cache", "w+")
         api.save_api_key(cache_file=".cache")
         verbose(f"User saved on cache")
 
@@ -174,6 +203,8 @@ def hue_login():
 ####################################
 def animation_light_on(light):
     try:
+        if cmd_args.stream_gradient and api.lightstrip_gradient:
+            light = api.lightstrip_gradient
         verbose(f"Turning on light: {light.name}")
         time.sleep(0.2)
         light.set_off()
@@ -191,6 +222,8 @@ def animation_light_on(light):
 
 def animation_light_off(light):
     try:
+        if cmd_args.stream_gradient and api.lightstrip_gradient:
+            light = api.lightstrip_gradient
         verbose(f"Turning off light: {light.name}")
         light.set_brightness(254)
         time.sleep(0.2)
@@ -229,16 +262,6 @@ def get_light_by_name(name):
     sys.exit(0)
 
 
-def get_light_by_id(light_id):
-    for light in api.fetch_lights():
-        if light.id == light_id:
-            animation_light_on(light)
-            return light
-
-    print(f"Error: Can't find light id for name: {light_id}")
-    sys.exit(0)
-
-
 def init_light_locations():
     global light_locations
     if cmd_args.stream:
@@ -259,13 +282,36 @@ def init_light_locations():
             )
             sys.exit(0)
 
+    # Option to stream 7 colors to hue lightstrip gradient
+    elif cmd_args.stream_gradient:
+        light_locations = {
+            # light positions [x, y]
+            # 2 up lights
+            "up_right_light": [0.5, 1.0, 1.0],
+            "up_left_light": [-0.5, 1.0, 1.0],
+            # 3 up middle lights
+            "up_right_middle_light": [0.25, 1.0, 0.0],
+            "up_middle_light": [0.0, 1.0, 0.0],
+            "up_left_middle_light": [-0.25, 1.0, 0.0],
+            # 2 down lights
+            "down_right_light": [0.5, 0.65, 1.0],
+            "down_left_light": [-0.5, 0.65, 1.0],
+        }
+        for group in api.fetch_groups():
+            if group.type == "Entertainment":
+                verbose(f"Entertainment zone: {group.name} found, locations: {group.locations}")
+                for light in group.lights:
+                    if light.product_name == "Hue play gradient lightstrip":
+                        verbose(f"Lightstrip gradient found: {light.id} - {light.name}")
+                        api.lightstrip_gradient = light
+
     else:
         light_locations = {
             # light positions [x, y]
-            "up_right_light": [0.5, 1.0, 0.0],
-            "up_left_light": [-0.5, 1.0, 0.0],
-            "down_right_light": [0.5, 1.0, 0.0],
-            "down_left_light": [-0.5, 1.0, 0.0],
+            "up_right_light": [0.5, 1.0, 1.0],
+            "up_left_light": [-0.5, 1.0, 1.0],
+            "down_right_light": [0.5, 0.65, 1.0],
+            "down_left_light": [-0.5, 0.65, 1.0],
         }
 
         if not cmd_args.up_left_light:
@@ -374,29 +420,37 @@ def average_image():
 
     # initialize the dicts
     coords = {}
-    bounds = {}
+    lights_bounds = {}
     for light, coordinates in scaled_locations:
         coords[light] = coordinates
-        bound = [coordinates[2] - dist, coordinates[2] + dist, coordinates[0] - dist, coordinates[0] + dist]
-        bound = list(map(int, bound))
-        bound = list(map(lambda x: 0 if x < 0 else x, bound))
-        bounds[light] = bound
+        bound_list = [coordinates[2] - dist, coordinates[2] + dist, coordinates[0] - dist, coordinates[0] + dist]
+        bound_map = list(map(int, bound_list))
+        bounds = list(map(lambda bound: 0 if bound < 0 else bound, bound_map))
+        lights_bounds[light] = bounds
 
     global rgb_colors, rgb_bytes  # array of rgb values, one for each light
     rgb_bytes = {}
     rgb_colors = {}
     rgb = {}
+    area = {}
 
     # Constantly sets RGB values by location via taking average of nearby pixels
     while not stop_stream:
-        for light_id, bound in bounds.items():
-            area = rgb_frame[bound[0] : bound[1], bound[2] : bound[3], :]
-            rgb = cv2.mean(area)
-            rgb_colors[light_id] = get_hue_color_from_rgba(rgb)
+        for light_id, bound in lights_bounds.items():
+            area[light_id] = rgb_frame[bound[0] : bound[1], bound[2] : bound[3], :]
+            rgb[light_id] = cv2.mean(area[light_id])
+            rgb_colors[light_id] = get_hue_color_from_rgba(rgb[light_id])
 
-        for x, c in rgb.items():
-            rgb_bytes[x] = bytearray(
-                [int(c[0] / 2), int(c[0] / 2), int(c[1] / 2), int(c[1] / 2), int(c[2] / 2), int(c[2] / 2)]
+        for light_id, color_mean in rgb.items():
+            rgb_bytes[light_id] = bytearray(
+                [
+                    int(color_mean[0] / 2),
+                    int(color_mean[0] / 2),
+                    int(color_mean[1] / 2),
+                    int(color_mean[1] / 2),
+                    int(color_mean[2] / 2),
+                    int(color_mean[2] / 2),
+                ]
             )
 
 
@@ -404,6 +458,7 @@ def average_image():
 #     Send colors to Lights        #
 ####################################
 def send_colors_to_lights():
+    global rgb_colors
     # Hold on for connection to bridge can be made & video capture is configured
     time.sleep(2.5)
     verbose("Streaming colors to lights... (Press Enter to stop streaming)")
@@ -421,6 +476,7 @@ def send_colors_to_lights():
 #  Stream colors to Entertainment zone  #
 #########################################
 def stream_colors_to_entertainment_zone(proc):
+    global rgb_bytes
     # Hold on for connection to bridge can be made & video capture is configured
     time.sleep(2.5)
     verbose("Streaming colors to Entertainment zone... (Press Enter to stop streaming)")
@@ -428,8 +484,10 @@ def stream_colors_to_entertainment_zone(proc):
         buffer_lock.acquire()
 
         message = bytes("HueStream", "utf-8") + b"\1\0\0\0\0\0\0"
-        for i in rgb_bytes:
-            message += b"\0\0" + bytes(chr(int(i)), "utf-8") + rgb_bytes[i]
+        for light_id, colors_bytes in rgb_bytes.items():
+            if cmd_args.stream_gradient and api.lightstrip_gradient:
+                light_id = api.lightstrip_gradient.id
+            message += b"\0\0" + bytes(chr(int(light_id)), "utf-8") + colors_bytes
 
         buffer_lock.release()
         proc.stdin.write(message.decode("utf-8", "ignore"))
@@ -450,16 +508,12 @@ def run_hue_play():
         try:
             threads = list()
             verbose("Starting Video Capture Setup...")
-            t = threading.Thread(target=configure_rgb_frames)
-            t.start()
-            threads.append(t)
+            rgb_frames_thread = threading.Thread(target=configure_rgb_frames)
             time.sleep(0.75)
             verbose("Starting Average image...")
-            t = threading.Thread(target=average_image)
-            t.start()
-            threads.append(t)
+            average_image_thread = threading.Thread(target=average_image)
             time.sleep(0.25)  # Initialize and find bridge IP before creating connection
-            if cmd_args.stream:
+            if cmd_args.stream or cmd_args.stream_gradient:
                 verbose("Starting stream colors to hue Entertainment zone...")
                 cmd = [
                     "openssl",
@@ -481,21 +535,24 @@ def run_hue_play():
                     stderr=subprocess.PIPE,
                     universal_newlines=True,
                 )
-                t = threading.Thread(target=stream_colors_to_entertainment_zone, args=(proc,))
-                t.start()
-                threads.append(t)
+                send_colors_thread = threading.Thread(target=stream_colors_to_entertainment_zone, args=(proc,))
             else:
                 verbose("Starting Send colors to Lights...")
-                t = threading.Thread(target=send_colors_to_lights)
-                t.start()
-                threads.append(t)
+                send_colors_thread = threading.Thread(target=send_colors_to_lights)
+
+            rgb_frames_thread.start()
+            average_image_thread.start()
+            send_colors_thread.start()
+            threads.extend([rgb_frames_thread, average_image_thread, send_colors_thread])
 
             input("Press ENTER to stop")  # Allow us to exit easily
             stop_stream = True
-            for t in threads:
-                t.join()
+            for thread in threads:
+                thread.join()
+
         except Exception as e:
             print(e)
+            traceback.print_exc()
             stop_stream = True
 
     finally:  # Turn off streaming to allow normal function immediately
@@ -508,7 +565,8 @@ if __name__ == "__main__":
     ####################################
     #        Init global vars          #
     ####################################
-    global api, buffer_lock, stop_stream, light_locations, video_width, video_height, rgb_frame, rgb_colors, rgb_bytes, coords, bounds
+    global api, buffer_lock, stop_stream, light_locations, video_width, video_height
+    global rgb_frame, rgb_colors, rgb_bytes, coords, bounds
     # login to hue bridge
     hue_login()
     # init lights location

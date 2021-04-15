@@ -20,8 +20,8 @@ RUN pip install -r /tmp/requirements.txt && rm /tmp/requirements.txt
 
 ADD docker/rootfs /
 
-COPY . /app/hue-tv-play
-WORKDIR /app/hue-tv-play
+COPY . /app/hue-play
+WORKDIR /app/hue-play
 
 ENTRYPOINT []
 CMD ["/usr/local/bin/run-play"]
