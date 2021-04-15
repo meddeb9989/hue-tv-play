@@ -492,7 +492,7 @@ def stream_colors_to_entertainment_zone(proc):
             verbose(f"light id: {light_id}")
             message += b"\0\0" + bytes(chr(int(light_id)), "utf-8")
             verbose(f"message with id: {message}")
-            colors_bytes = rgb_bytes.values()[0]
+            colors_bytes = rgb_bytes["up_right_light"]
             # for colors_bytes in rgb_bytes.values():
             message += colors_bytes
             verbose(f"message color: {colors_bytes} : {message}")
