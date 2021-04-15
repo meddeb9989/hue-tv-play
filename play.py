@@ -268,7 +268,7 @@ def init_light_locations():
         light_locations = {}
         for group in api.fetch_groups():
             if group.type == "Entertainment":
-                verbose(f"Entertainment zone: {group.name} found, locations: {group.locations}")
+                verbose(f"Entertainment zone: {group.name} found.")
                 for light in group.lights:
                     verbose(f"Light: {light.id} - {light.name}")
                     locations = group.locations.get(str(light.id))
@@ -299,7 +299,7 @@ def init_light_locations():
         }
         for group in api.fetch_groups():
             if group.type == "Entertainment":
-                verbose(f"Entertainment zone: {group.name} found, locations: {group.locations}")
+                verbose(f"Entertainment zone: {group.name} found.")
                 for light in group.lights:
                     if light.product_name == "Hue play gradient lightstrip":
                         verbose(f"Lightstrip gradient found: {light.id} - {light.name}")
@@ -428,7 +428,7 @@ def average_image():
         bounds = list(map(lambda bound: 0 if bound < 0 else bound, bound_map))
         lights_bounds[light] = bounds
 
-    global rgb_colors, rgb_bytes  # array of rgb values, one for each light
+    global rgb_colors, rgb_frame, rgb_bytes  # array of rgb values, one for each light
     rgb_bytes = {}
     rgb_colors = {}
     rgb = {}
