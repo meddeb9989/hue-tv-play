@@ -497,7 +497,7 @@ def stream_colors_to_entertainment_zone(proc):
 
         buffer_lock.release()
         proc.stdin.write(message.decode("utf-8", "ignore"))
-        time.sleep(0.01)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
+        time.sleep(0.02)  # 0.01 to 0.02 (slightly under 100 or 50 messages per sec // or (.015 = ~66.6))
         proc.stdin.flush()
 
 
