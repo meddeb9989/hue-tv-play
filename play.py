@@ -205,7 +205,7 @@ def hue_login():
 ####################################
 def animation_light_on(light):
     try:
-        if cmd_args.stream_gradient or api.lightstrip_gradient:
+        if cmd_args.stream_gradient and api.lightstrip_gradient:
             light = api.lightstrip_gradient
         verbose(f"Turning on light: {light.name}")
         time.sleep(0.2)
@@ -224,7 +224,7 @@ def animation_light_on(light):
 
 def animation_light_off(light):
     try:
-        if cmd_args.stream_gradient or api.lightstrip_gradient:
+        if cmd_args.stream_gradient and api.lightstrip_gradient:
             light = api.lightstrip_gradient
         verbose(f"Turning off light: {light.name}")
         light.set_brightness(254)
@@ -486,11 +486,14 @@ def stream_colors_to_entertainment_zone(proc):
         buffer_lock.acquire()
 
         message = bytes("HueStream", "utf-8") + b"\1\0\0\0\0\0\0"
-        if cmd_args.stream_gradient or api.lightstrip_gradient:
+        verbose(f"message: {message}")
+        if cmd_args.stream_gradient and api.lightstrip_gradient:
             light_id = api.lightstrip_gradient.id
             message += b"\0\0" + bytes(chr(int(light_id)), "utf-8")
+            verbose(f"message with id: {message}")
             for colors_bytes in rgb_bytes.values():
                 message += colors_bytes
+                verbose(f"message color: {colors_bytes} : {message}")
         else:
             for light_id, colors_bytes in rgb_bytes.items():
                 message += b"\0\0" + bytes(chr(int(light_id)), "utf-8") + colors_bytes
