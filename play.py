@@ -489,7 +489,7 @@ def stream_colors_to_entertainment_zone(proc):
         verbose(f"message: {message}")
         if cmd_args.stream_gradient and api.lightstrip_gradient:
             light_id = api.lightstrip_gradient.id
-            verbose(f"light id: {message}")
+            verbose(f"light id: {light_id}")
             message += b"\0\0" + bytes(chr(int(light_id)), "utf-8")
             verbose(f"message with id: {message}")
             for colors_bytes in rgb_bytes.values():
